@@ -9,6 +9,7 @@ import os
 import pickle
 import unittest
 import collections
+import contextlib
 
 import io
 import requests
@@ -1060,6 +1061,15 @@ class RequestsTestCase(unittest.TestCase):
         next(it)
         assert len(list(it)) == 3
 
+    def test_unconsumed_session_response_closes_connection(self):
+        s = requests.session()
+
+        with contextlib.closing(s.get(httpbin('stream/4'), stream=True)) as response:
+            pass
+
+        self.assertFalse(response._content_consumed)
+        self.assertTrue(response.raw.closed)
+
     @pytest.mark.xfail
     def test_response_iter_lines_reentrant(self):
         """Response.iter_lines() is not reentrant safe"""
@@ -1214,6 +1224,7 @@ class TestCaseInsensitiveDict(unittest.TestCase):
         del othercid['spam']
         assert cid != othercid
         assert cid == {'spam': 'blueval', 'eggs': 'redval'}
+        assert cid != object()
 
     def test_setdefault(self):
         cid = CaseInsensitiveDict({'Spam': 'blueval'})
@@ -1250,6 +1261,16 @@ class TestCaseInsensitiveDict(unittest.TestCase):
         assert frozenset(i[0] for i in cid.items()) == keyset
         assert frozenset(cid.keys()) == keyset
         assert frozenset(cid) == keyset
+
+    def test_copy(self):
+        cid = CaseInsensitiveDict({
+            'Accept': 'application/json',
+            'user-Agent': 'requests',
+        })
+        cid_copy = cid.copy()
+        assert cid == cid_copy
+        cid['changed'] = True
+        assert cid != cid_copy
 
 
 class UtilsTestCase(unittest.TestCase):

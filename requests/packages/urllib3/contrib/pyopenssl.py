@@ -51,6 +51,7 @@ except SyntaxError as e:
     raise ImportError(e)
 
 import OpenSSL.SSL
+import OpenSSL._util
 from pyasn1.codec.der import decoder as der_decoder
 from pyasn1.type import univ, constraint
 from socket import _fileobject, timeout
@@ -292,7 +293,9 @@ def ssl_wrap_socket(sock, keyfile=None, certfile=None, cert_reqs=None,
     ctx.set_cipher_list(DEFAULT_SSL_CIPHER_LIST)
 
     cnx = OpenSSL.SSL.Connection(ctx, sock)
-    cnx.set_tlsext_host_name(server_hostname)
+    # only use SNI if supported by OpenSSL
+    if hasattr(OpenSSL._util.lib, "SSL_set_tlsext_host_name"):
+        cnx.set_tlsext_host_name(server_hostname)
     cnx.set_connect_state()
     while True:
         try:
